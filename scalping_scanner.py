@@ -19,12 +19,15 @@ PAIR_LIMIT = 300
 MAX_THREADS = 10
 TRADE_COOLDOWN = 15
 MAX_OPEN_TRADES = 10
-TRADE_TIMEOUT = 15
-RSI_MIN, RSI_MAX = 40, 70
-VOLUME_MULTIPLIER = 1.0
+MIN_TRADE_DURATION = 60  # Seconds to prevent immediate stop-loss
+RSI_MIN, RSI_MAX = 45, 65  # Tightened RSI
+VOLUME_MULTIPLIER = 1.5  # Tightened volume
+MIN_ATR_RATIO = 0.005  # ATR > 0.5% of price
 USE_DYNAMIC_EXITS = True
-MIN_RISK_REWARD = 1.5  # Minimum risk-reward ratio
-MIN_PRICE_DIFF = 0.002  # Minimum 0.2% difference for stop-loss/target
+MIN_RISK_REWARD = 1.5
+MIN_PRICE_DIFF = 0.003  # 0.3% minimum difference
+TRAIL_ACTIVATION = 0.005  # 0.5% price increase to activate trailing stop
+TRAIL_DISTANCE = 0.003  # 0.3% below peak for trailing stop
 CSV_FILE = 'trade_history.csv'
 ERROR_LOG = 'errors.log'
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -41,9 +44,11 @@ open_trades = []
 closed_trades = []
 
 
-# Determine decimal places based on price
+# Get decimal places based on price
 def get_decimal_places(price):
-    if price < 1:
+    if price < 0.01:
+        return 6  # For very low prices (e.g., FLOKI/USDT)
+    elif price < 1:
         return 4
     elif price < 100:
         return 2
@@ -188,25 +193,23 @@ def process_pair(symbol):
         price_cross = previous['close'] < previous['ema20'] and latest['close'] > latest['ema20']
         rsi_condition = RSI_MIN < latest['rsi'] < RSI_MAX and latest['rsi'] > previous['rsi']
         volume_condition = latest['volume'] > VOLUME_MULTIPLIER * latest['volume_ma20']
-        atr_condition = latest['atr'] > latest['atr_ma20']
+        atr_condition = latest['atr'] > latest['atr_ma20'] and latest['atr'] > MIN_ATR_RATIO * latest['close']
         bullish_candle = is_bullish_candle(latest)
 
         if price_cross and rsi_condition and volume_condition and atr_condition and bullish_candle:
             entry_price = latest['close']
+            if entry_price < 0.001:  # Skip very low-price assets
+                return None
             decimals = get_decimal_places(entry_price)
 
             if USE_DYNAMIC_EXITS:
-                stop_loss = previous['low']
-                # Fallback to fixed if stop_loss equals entry_price
-                if abs(entry_price - stop_loss) < entry_price * MIN_PRICE_DIFF:
-                    stop_loss = entry_price * (1 - 0.004)
-                    logging.error(f"Invalid dynamic stop-loss for {symbol}: using fixed 0.4%")
+                stop_loss = min(previous['low'], entry_price * (1 - 0.004))  # Buffer with fixed 0.4%
                 profit_target = entry_price + 2 * (entry_price - stop_loss)
             else:
                 stop_loss = entry_price * (1 - 0.004)
                 profit_target = entry_price * (1 + 0.008)
 
-            # Validate risk-reward and price differences
+            # Validate trade
             risk = entry_price - stop_loss
             reward = profit_target - entry_price
             if risk <= 0 or reward <= 0 or reward / risk < MIN_RISK_REWARD or \
@@ -221,6 +224,8 @@ def process_pair(symbol):
                 'entry_price': round(entry_price, decimals),
                 'stop_loss': round(stop_loss, decimals),
                 'profit_target': round(profit_target, decimals),
+                'trailing_stop': None,  # Initialize trailing stop
+                'peak_price': entry_price,  # Track peak for trailing
                 'rsi': round(latest['rsi'], 2),
                 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'current_price': round(entry_price, decimals),
@@ -257,12 +262,28 @@ def monitor_trades():
             entry_time = datetime.strptime(trade['time'], '%Y-%m-%d %H:%M:%S')
             decimals = get_decimal_places(trade['entry_price'])
 
-            if now - entry_time > timedelta(minutes=TRADE_TIMEOUT):
-                outcome = 'Timeout'
-                exit_price = current_price
-            elif current_price <= trade['stop_loss']:
+            # Skip stop-loss if within minimum duration
+            time_elapsed = (now - entry_time).total_seconds()
+            allow_stop_loss = time_elapsed >= MIN_TRADE_DURATION
+
+            # Update peak price
+            trade['peak_price'] = max(trade['peak_price'], current_price)
+
+            # Activate trailing stop if price rises by TRAIL_ACTIVATION
+            if trade['trailing_stop'] is None and current_price >= trade['entry_price'] * (1 + TRAIL_ACTIVATION):
+                trade['trailing_stop'] = trade['peak_price'] * (1 - TRAIL_DISTANCE)
+
+            # Update trailing stop
+            if trade['trailing_stop'] is not None:
+                trade['trailing_stop'] = max(trade['trailing_stop'], trade['peak_price'] * (1 - TRAIL_DISTANCE))
+
+            # Check exit conditions
+            if allow_stop_loss and current_price <= trade['stop_loss']:
                 outcome = 'Loss'
                 exit_price = trade['stop_loss']
+            elif trade['trailing_stop'] is not None and current_price <= trade['trailing_stop']:
+                outcome = 'Trailing Stop'
+                exit_price = trade['trailing_stop']
             elif current_price >= trade['profit_target']:
                 outcome = 'Win'
                 exit_price = trade['profit_target']
@@ -287,7 +308,7 @@ def monitor_trades():
             closed_trades.append(closed_trade)
             trades_to_remove.append(trade)
 
-            emoji = '✅' if outcome == 'Win' else '❌' if outcome == 'Loss' else '⏰'
+            emoji = '✅' if outcome == 'Win' else '❌' if outcome in ['Loss', 'Trailing Stop'] else '⏰'
             message = (
                 f"{emoji} *Trade Closed*\n"
                 f"Symbol: {symbol}\n"

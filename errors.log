@@ -1,0 +1,11 @@
+2025-04-23 16:51:06,177 - Fetch pairs error (attempt 1): binance GET https://api.binance.com/api/v3/ticker/24hr
+2025-04-23 16:51:20,292 - Fetch USDC/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=USDCUSDT
+2025-04-23 16:51:20,292 - Fetch SOL/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=SOLUSDT
+2025-04-23 16:51:20,310 - Fetch ETH/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=ETHUSDT
+2025-04-23 16:51:20,310 - Fetch FDUSD/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=FDUSDUSDT
+2025-04-23 16:51:20,311 - Fetch DOGE/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=DOGEUSDT
+2025-04-23 16:51:20,311 - Fetch SUI/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=SUIUSDT
+2025-04-23 16:51:20,311 - Fetch PEPE/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=PEPEUSDT
+2025-04-23 16:51:20,312 - Fetch BNB/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=BNBUSDT
+2025-04-23 16:51:20,312 - Fetch XRP/USDT 15m error (attempt 1): binance GET https://api.binance.com/api/v3/klines?interval=15m&limit=200&symbol=XRPUSDT
+2025-04-23 17:07:30,358 - Invalid dynamic stop-loss for FDUSD/USDT: using fixed 0.4%

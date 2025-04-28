@@ -1841,3 +1841,6 @@ s?interval=15m&limit=200&symbol=GALAUSDT
 2025-04-24 00:43:13,969 - Fetch pairs error (attempt 2): binance GET https://api.binance.com/api/v3/ticker/24hr
 2025-04-24 00:43:19,299 - Fetch pairs error (attempt 3): binance GET https://api.binance.com/api/v3/ticker/24hr
 2025-04-24 00:44:03,348 - Fetch pairs error (attempt 1): binance GET https://api.binance.com/api/v3/ticker/24hr
+2025-04-26 13:29:13,967 - Fetch pairs error (attempt 1): binance GET https://api.binance.com/api/v3/ticker/24hr
+2025-04-26 13:29:17,176 - Fetch pairs error (attempt 2): binance GET https://api.binance.com/api/v3/ticker/24hr
+2025-04-26 13:29:20,038 - Fetch pairs error (attempt 3): binance GET https://api.binance.com/api/v3/ticker/24hr
